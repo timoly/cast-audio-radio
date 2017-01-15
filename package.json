@@ -1,7 +1,7 @@
 {
   "name": "cast-audio-radio",
   "version": "1.0.0",
-  "description": "",
+  "description": "HLS radio stream support for Mopidy (https://www.mopidy.com)",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
