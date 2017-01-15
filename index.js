@@ -1,12 +1,12 @@
 const http = require('http')
 const request = require('request')
 const {exec} = require('shelljs')
-const {streams, port} = require('./config')
+const {streams, serverPort} = require('./config')
 const R = require('ramda')
 const os = require('os')
 const vlcPaths = {
-  darwin: '/Applications/VLC.app/Contents/MacOS/VLC -I rc',
-  linux: 'cvlc'
+  darwin: '/Applications/VLC.app/Contents/MacOS/VLC',
+  linux: 'vlc'
 }
 const vlcBin = vlcPaths[os.platform()]
 if(!vlcBin){
@@ -14,7 +14,7 @@ if(!vlcBin){
 }
 
 const vlcPortStart = 5000
-const vlcCmd = (url, port) => `${vlcBin} ${url} --loop --repeat --http-reconnect --http-continuous --sout="#standard{mux=ts,access=http,dst=localhost:${port}}"`
+const vlcCmd = (url, port) => `${vlcBin} -I rc ${url} --loop --repeat --http-reconnect --http-continuous --sout="#standard{mux=ts,access=http,dst=localhost:${port}}"`
 
 var vlcInstances = []
 var clients = streams.reduce((acc, cur) => R.assoc(cur.name, [], acc), {})
@@ -30,13 +30,13 @@ function startVlc(index, {name, url}){
     console.log('starting vlc', name, port)
     vlcInstances.push(name)
     const vlc = exec(vlcCmd(url, port), {async: true})
-    vlc.stdout.on('data', function(data) {
-      console.log(vlc.pid, data)
+    vlc.stdout.once('data', function(data) {
+      console.log("vlc pid:", vlc.pid)
 
       const stream = request(`http://localhost:${port}`)
 
       const onEnd = function(){
-        console.log("onEnd", name)
+        console.log("onEnd", name, vlc.pid)
         while(res = clients[name].shift()){
           res.end()
         }
@@ -57,32 +57,46 @@ function startVlc(index, {name, url}){
         .on('data', chunk => clients[name].map(res => res.write(chunk, onData)))
         .on('end', onEnd)
     })
-
-    vlc.stdout.on('error', function(err) {
-      console.log("err:", err)
-      onEnd()
-    })
   })
 }
 
-function handleRequest(req, res){
-  const radio = req.url.slice(1)
-  console.log('request:', radio)
-  const streamIndex = streams.findIndex(({name}) => name === radio)
+function getPlaylist(){
+  return R.pipe(
+    R.chain(({name}) => [`#EXTINF:0,${name}`, `http://192.168.1.33:${serverPort}/${name}`]),
+    R.prepend('#EXTM3U'),
+    R.join('\n')
+  )(streams)
+}
+
+function handleStream(res, path){
+  const streamIndex = streams.findIndex(({name}) => name === path)
   if(streamIndex === -1){
-    console.log('unknown radio', radio)
+    console.log('unknown radio', path)
     return res.end()
   }
-  clients[radio].push(res)
+  clients[path].push(res)
 
-  if(vlcInstances.find(name => name === radio)){
+  if(vlcInstances.find(name => name === path)){
     return
   }
 
   startVlc(streamIndex, streams[streamIndex])
 }
 
+function handlePlaylist(res){
+  res.writeHead(200, {'Content-Type': 'application/x-mpegurl'})
+  return res.end(getPlaylist())
+}
+
+function handleRequest(req, res){
+  const path = req.url.slice(1)
+  console.log('request:', path)
+
+  return path === 'playlist.m3u8' ? handlePlaylist(res) : handleStream(res, path)
+}
+
 const server = http.createServer(handleRequest)
-server.listen(port, function(){
-  console.log("Server listening on: http://localhost:%s", port)
+
+server.listen(serverPort, function(){
+  console.log("Server listening on: http://localhost:%s", serverPort)
 })
