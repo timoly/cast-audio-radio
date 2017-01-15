@@ -1,0 +1,17 @@
+{
+  "port": 8082,
+  "streams": [
+    {
+      "name": "YleX",
+      "url": "http://yleuni-f.akamaihd.net/i/yleliveradiohd_2@113879/master.m3u8"
+    },
+    {
+      "name": "Bassoradio",
+      "url": "http://stream.basso.fi:8000/stream"
+    },
+    {
+      "name": "BBC_Radio1",
+      "url": "http://a.files.bbci.co.uk/media/live/manifesto/audio/simulcast/hls/uk/sbr_high/ak/bbc_radio_one.m3u8"
+    }
+  ]
+}
