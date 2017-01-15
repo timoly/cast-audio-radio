@@ -14,5 +14,6 @@ Usage:
 
 
 Prerequired:
+- MacOS or Linux
 - VLC
 - NodeJS

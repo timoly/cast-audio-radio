@@ -62,7 +62,7 @@ function startVlc(index, {name, url}){
 
 function getPlaylist(){
   return R.pipe(
-    R.chain(({name}) => [`#EXTINF:0,${name}`, `http://192.168.1.33:${serverPort}/${name}`]),
+    R.chain(({name}) => [`#EXTINF:0,${name}`, `http://localhost:${serverPort}/${name}`]),
     R.prepend('#EXTM3U'),
     R.join('\n')
   )(streams)
